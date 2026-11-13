@@ -65,7 +65,7 @@ runs:
 
     # publish report only when pushing to master
     - name: Push to gh-pages
-      if: github.ref == 'refs/heads/master'
+      if: github.repository == 'hyperium/h3' && github.ref == 'refs/heads/master'
       uses: ad-m/github-push-action@v1
       with:
         github_token: ${{ github.token }}
