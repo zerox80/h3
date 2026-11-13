@@ -1,0 +1,51 @@
+name: Check latest Quinn fork
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'
+  workflow_dispatch:
+  push:
+    branches: [main, master]
+    paths:
+      - '.github/workflows/quinn-latest.yml'
+      - '**/Cargo.toml'
+
+permissions:
+  contents: read
+
+jobs:
+  check-quinn:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        branch: [main, master]
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ matrix.branch }}
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Resolve Quinn and check the latest commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo generate-lockfile
+          expected=$(git ls-remote https://github.com/zerox80/quinn.git refs/heads/main | cut -f1)
+          test -n "$expected"
+          EXPECTED_QUINN_COMMIT="$expected" python3 -c '
+          import os, sys, tomllib
+          with open("Cargo.lock", "rb") as f:
+              packages = tomllib.load(f)["package"]
+          expected = os.environ["EXPECTED_QUINN_COMMIT"]
+          for name in ("quinn", "quinn-proto", "quinn-udp"):
+              matches = [p for p in packages if p["name"] == name]
+              if len(matches) != 1:
+                  sys.exit(f"Expected one {name} dependency, found {len(matches)}")
+              source = matches[0].get("source", "")
+              if not source.startswith("git+https://github.com/zerox80/quinn.git?branch=main#") or source.rsplit("#", 1)[-1] != expected:
+                  sys.exit(f"{name} does not use the latest fork commit: {source}")
+              print(f"{name}: {expected}")
+          '
+      - name: Test H3 against the resolved Quinn commit
+        run: cargo test --locked -p h3 -p h3-quinn
+      - name: Check examples
+        run: cargo check --locked --examples
