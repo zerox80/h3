@@ -5,7 +5,7 @@ on:
     - cron: '0 8 * * 1'
   workflow_dispatch:
   push:
-    branches: [main, master]
+    branches: [master]
     paths:
       - '.github/workflows/quinn-latest.yml'
       - '**/Cargo.toml'
@@ -16,13 +16,10 @@ permissions:
 jobs:
   check-quinn:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        branch: [main, master]
     steps:
       - uses: actions/checkout@v5
         with:
-          ref: ${{ matrix.branch }}
+          ref: master
       - uses: dtolnay/rust-toolchain@stable
       - name: Resolve Quinn and check the latest commit
         shell: bash
